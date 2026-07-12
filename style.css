@@ -37,6 +37,7 @@ body {
     color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
+    cursor: default;
 }
 
 body::before {
@@ -63,6 +64,7 @@ body::before {
     );
     pointer-events: none;
     z-index: 9999;
+    cursor: default;
 }
 
 .app {
@@ -566,4 +568,206 @@ input[type="range"]::-moz-range-thumb {
     input[type="range"] {
         flex: 1;
     }
+}
+
+/* Timeline */
+.timeline {
+    margin-top: 0.8rem;
+    background: var(--bg-toolbar);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.6rem 1rem;
+    box-shadow: var(--shadow), var(--glow-rgb);
+}
+
+.timeline-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.timeline-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 0.3rem;
+}
+
+.frame-counter {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+    letter-spacing: 1px;
+}
+
+.fps-control {
+    gap: 0.4rem;
+}
+
+.fps-control input[type="range"] {
+    width: 60px;
+}
+
+.btn-play {
+    min-width: 36px;
+    justify-content: center;
+}
+
+.btn-play.playing {
+    background: rgba(51, 255, 102, 0.15);
+    border-color: rgba(51, 255, 102, 0.4);
+    color: var(--green);
+}
+
+.btn-gif {
+    background: linear-gradient(135deg, rgba(51, 255, 102, 0.15), rgba(51, 204, 255, 0.15));
+    color: var(--text-bright);
+    border-color: rgba(51, 255, 102, 0.3);
+}
+
+.btn-gif:hover {
+    background: linear-gradient(135deg, rgba(51, 255, 102, 0.3), rgba(51, 204, 255, 0.3));
+    border-color: rgba(51, 255, 102, 0.5);
+    box-shadow: 0 0 15px rgba(51, 255, 102, 0.12);
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    color: var(--red);
+    border-color: rgba(255, 51, 102, 0.2);
+}
+
+.btn-danger:hover {
+    background: rgba(255, 51, 102, 0.1);
+    border-color: rgba(255, 51, 102, 0.4);
+    color: var(--red);
+}
+
+.timeline-frames {
+    display: flex;
+    gap: 6px;
+    padding: 0.6rem 0 0.2rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+}
+
+.frame-thumb {
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: var(--bg-secondary);
+    position: relative;
+    transition: all 0.12s ease;
+    image-rendering: pixelated;
+    overflow: hidden;
+}
+
+.frame-thumb canvas {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+}
+
+.frame-thumb:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.frame-thumb.active {
+    border-color: var(--rgb-1);
+    box-shadow: 0 0 10px rgba(255, 51, 102, 0.3), 0 0 0 1px rgba(255, 51, 102, 0.2);
+}
+
+.frame-thumb .frame-num {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    font-size: 0.5rem;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(0, 0, 0, 0.5);
+    padding: 1px 3px;
+    border-radius: 2px;
+    line-height: 1;
+}
+
+.frame-thumb .frame-delete {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--red);
+    color: white;
+    font-size: 0.5rem;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid var(--bg-primary);
+    line-height: 1;
+}
+
+.frame-thumb:hover .frame-delete {
+    display: flex;
+}
+
+.gif-export-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.gif-export-modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem;
+    text-align: center;
+    min-width: 280px;
+    box-shadow: var(--shadow);
+}
+
+.gif-export-modal h3 {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.7rem;
+    color: var(--text-bright);
+    margin-bottom: 1rem;
+}
+
+.gif-export-modal .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.8rem;
+}
+
+.gif-export-modal .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--rgb-1), var(--rgb-5), var(--rgb-4));
+    border-radius: 3px;
+    transition: width 0.15s;
+    width: 0%;
+}
+
+.gif-export-modal .progress-text {
+    font-size: 0.7rem;
+    color: var(--text-dim);
 }

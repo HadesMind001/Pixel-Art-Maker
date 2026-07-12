@@ -23,9 +23,15 @@ let currentColor = '#000000';
 let currentTool = 'pencil';
 let isDrawing = false;
 let lastX = 0, lastY = 0;
-let pixelData = [];
-let recentColors = [];
 let hoverX = -1, hoverY = -1;
+let recentColors = [];
+
+// Animation state
+let frames = [];
+let currentFrame = 0;
+let isPlaying = false;
+let playInterval = null;
+let fps = 8;
 
 const gridSizeInput = document.getElementById('gridSize');
 const gridSizeValue = document.getElementById('gridSizeValue');
@@ -33,6 +39,7 @@ const zoomInput = document.getElementById('zoom');
 const zoomValue = document.getElementById('zoomValue');
 const clearBtn = document.getElementById('clearBtn');
 const downloadBtn = document.getElementById('downloadBtn');
+const exportGifBtn = document.getElementById('exportGifBtn');
 const customColorInput = document.getElementById('customColor');
 const addColorBtn = document.getElementById('addColorBtn');
 const colorPalette = document.getElementById('colorPalette');
@@ -41,15 +48,27 @@ const coordsEl = document.getElementById('coords');
 const currentSwatch = document.getElementById('currentSwatch');
 const currentHex = document.getElementById('currentHex');
 
+// Timeline elements
+const prevFrameBtn = document.getElementById('prevFrameBtn');
+const nextFrameBtn = document.getElementById('nextFrameBtn');
+const playBtn = document.getElementById('playBtn');
+const addFrameBtn = document.getElementById('addFrameBtn');
+const dupFrameBtn = document.getElementById('dupFrameBtn');
+const delFrameBtn = document.getElementById('delFrameBtn');
+const fpsSlider = document.getElementById('fpsSlider');
+const fpsValueEl = document.getElementById('fpsValue');
+const frameCounter = document.getElementById('frameCounter');
+const timelineFrames = document.getElementById('timelineFrames');
+const playIcon = document.getElementById('playIcon');
+const pauseIcon = document.getElementById('pauseIcon');
+
 function init() {
-    loadCanvasState();
     loadSettings();
     initColorPalette();
     initRecentColors();
-    initCanvas();
+    initFrames();
     setupEventListeners();
-    renderCanvas();
-    drawGridOverlay();
+    loadFrameToCanvas();
     updateRecentColorsDisplay();
     selectColor(currentColor);
     updateToolButtons();
@@ -61,17 +80,21 @@ function loadSettings() {
     const savedColors = localStorage.getItem('pixelArtRecentColors');
     const savedColor = localStorage.getItem('pixelArtCurrentColor');
     const savedTool = localStorage.getItem('pixelArtCurrentTool');
+    const savedFps = localStorage.getItem('pixelArtFps');
 
     if (savedGridSize) gridSize = parseInt(savedGridSize);
     if (savedZoom) zoom = parseInt(savedZoom);
     if (savedColors) recentColors = JSON.parse(savedColors);
     if (savedColor) currentColor = savedColor;
     if (savedTool) currentTool = savedTool;
+    if (savedFps) fps = parseInt(savedFps);
 
     gridSizeInput.value = gridSize;
     gridSizeValue.textContent = gridSize;
     zoomInput.value = zoom;
     zoomValue.textContent = zoom + 'x';
+    fpsSlider.value = fps;
+    fpsValueEl.textContent = fps;
 }
 
 function saveSettings() {
@@ -80,7 +103,275 @@ function saveSettings() {
     localStorage.setItem('pixelArtRecentColors', JSON.stringify(recentColors));
     localStorage.setItem('pixelArtCurrentColor', currentColor);
     localStorage.setItem('pixelArtCurrentTool', currentTool);
+    localStorage.setItem('pixelArtFps', fps);
 }
+
+// ─── Frame Management ────────────────────────────────────
+
+function createEmptyFrame() {
+    return new Array(gridSize * gridSize).fill('#00000000');
+}
+
+function initFrames() {
+    const saved = localStorage.getItem('pixelArtFrames');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            if (Array.isArray(data) && data.length > 0) {
+                frames = data;
+                currentFrame = 0;
+                return;
+            }
+        } catch (e) {}
+    }
+    frames = [createEmptyFrame()];
+    currentFrame = 0;
+}
+
+function saveFrames() {
+    localStorage.setItem('pixelArtFrames', JSON.stringify(frames));
+}
+
+function getCurrentFrameData() {
+    return frames[currentFrame];
+}
+
+function addFrame() {
+    stopPlayback();
+    frames.splice(currentFrame + 1, 0, createEmptyFrame());
+    currentFrame++;
+    loadFrameToCanvas();
+    renderTimeline();
+    saveFrames();
+}
+
+function duplicateFrame() {
+    stopPlayback();
+    const copy = [...frames[currentFrame]];
+    frames.splice(currentFrame + 1, 0, copy);
+    currentFrame++;
+    loadFrameToCanvas();
+    renderTimeline();
+    saveFrames();
+}
+
+function deleteFrame() {
+    if (frames.length <= 1) return;
+    stopPlayback();
+    frames.splice(currentFrame, 1);
+    if (currentFrame >= frames.length) currentFrame = frames.length - 1;
+    loadFrameToCanvas();
+    renderTimeline();
+    saveFrames();
+}
+
+function goToFrame(index) {
+    if (index < 0 || index >= frames.length) return;
+    saveCanvasToFrame();
+    currentFrame = index;
+    loadFrameToCanvas();
+    renderTimeline();
+}
+
+function saveCanvasToFrame() {
+    frames[currentFrame] = [...pixelData];
+    saveFrames();
+}
+
+function loadFrameToCanvas() {
+    pixelData = [...frames[currentFrame]];
+    initCanvas();
+    renderCanvas();
+    drawGridOverlay();
+    frameCounter.textContent = `${currentFrame + 1} / ${frames.length}`;
+    renderTimeline();
+}
+
+function nextFrame() {
+    saveCanvasToFrame();
+    currentFrame = (currentFrame + 1) % frames.length;
+    loadFrameToCanvas();
+    renderTimeline();
+}
+
+function prevFrame() {
+    saveCanvasToFrame();
+    currentFrame = (currentFrame - 1 + frames.length) % frames.length;
+    loadFrameToCanvas();
+    renderTimeline();
+}
+
+// ─── Playback ────────────────────────────────────────────
+
+function togglePlayback() {
+    if (isPlaying) {
+        stopPlayback();
+    } else {
+        startPlayback();
+    }
+}
+
+function startPlayback() {
+    saveCanvasToFrame();
+    isPlaying = true;
+    playBtn.classList.add('playing');
+    playIcon.style.display = 'none';
+    pauseIcon.style.display = 'block';
+
+    playInterval = setInterval(() => {
+        currentFrame = (currentFrame + 1) % frames.length;
+        loadFrameToCanvas();
+        renderTimeline();
+    }, 1000 / fps);
+}
+
+function stopPlayback() {
+    if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+    }
+    isPlaying = false;
+    playBtn.classList.remove('playing');
+    playIcon.style.display = 'block';
+    pauseIcon.style.display = 'none';
+}
+
+function updateFps(newFps) {
+    fps = newFps;
+    fpsValueEl.textContent = fps;
+    saveSettings();
+    if (isPlaying) {
+        stopPlayback();
+        startPlayback();
+    }
+}
+
+// ─── Timeline Rendering ──────────────────────────────────
+
+function renderTimeline() {
+    timelineFrames.innerHTML = '';
+
+    frames.forEach((frameData, i) => {
+        const thumb = document.createElement('div');
+        thumb.className = 'frame-thumb' + (i === currentFrame ? ' active' : '');
+
+        const thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = gridSize;
+        thumbCanvas.height = gridSize;
+        const thumbCtx = thumbCanvas.getContext('2d');
+        thumbCtx.imageSmoothingEnabled = false;
+
+        for (let y = 0; y < gridSize; y++) {
+            for (let x = 0; x < gridSize; x++) {
+                const color = frameData[y * gridSize + x];
+                if (color && color !== '#00000000') {
+                    thumbCtx.fillStyle = color;
+                    thumbCtx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+
+        const num = document.createElement('span');
+        num.className = 'frame-num';
+        num.textContent = i + 1;
+
+        const del = document.createElement('span');
+        del.className = 'frame-delete';
+        del.textContent = '\u00d7';
+        del.addEventListener('click', (e) => {
+            e.stopPropagation();
+            frames.splice(i, 1);
+            if (frames.length === 0) {
+                frames = [createEmptyFrame()];
+            }
+            if (currentFrame >= frames.length) currentFrame = frames.length - 1;
+            if (i === currentFrame || frames.length === 1) {
+                loadFrameToCanvas();
+            }
+            renderTimeline();
+            saveFrames();
+        });
+
+        thumb.appendChild(thumbCanvas);
+        thumb.appendChild(num);
+        thumb.appendChild(del);
+
+        thumb.addEventListener('click', () => goToFrame(i));
+        timelineFrames.appendChild(thumb);
+    });
+
+    frameCounter.textContent = `${currentFrame + 1} / ${frames.length}`;
+}
+
+// ─── GIF Export ──────────────────────────────────────────
+
+function exportGif() {
+    saveCanvasToFrame();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'gif-export-overlay';
+    overlay.innerHTML = `
+        <div class="gif-export-modal">
+            <h3>Exporting GIF</h3>
+            <div class="progress-bar"><div class="progress-fill" id="gifProgress"></div></div>
+            <div class="progress-text" id="gifProgressText">Encoding frame 0/${frames.length}...</div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const progressFill = document.getElementById('gifProgress');
+    const progressText = document.getElementById('gifProgressText');
+
+    const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: gridSize,
+        height: gridSize,
+        workerScript: 'gif.worker.js'
+    });
+
+    const delay = Math.round(1000 / fps);
+
+    frames.forEach((frameData) => {
+        const frameCanvas = document.createElement('canvas');
+        frameCanvas.width = gridSize;
+        frameCanvas.height = gridSize;
+        const frameCtx = frameCanvas.getContext('2d');
+        frameCtx.imageSmoothingEnabled = false;
+
+        for (let y = 0; y < gridSize; y++) {
+            for (let x = 0; x < gridSize; x++) {
+                const color = frameData[y * gridSize + x];
+                if (color && color !== '#00000000') {
+                    frameCtx.fillStyle = color;
+                    frameCtx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+
+        gif.addFrame(frameCanvas, { copy: true, delay: delay });
+    });
+
+    gif.on('progress', (p) => {
+        const pct = Math.round(p * 100);
+        progressFill.style.width = pct + '%';
+        progressText.textContent = `Encoding... ${pct}%`;
+    });
+
+    gif.on('finished', (blob) => {
+        overlay.remove();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pixel-art-${gridSize}x${gridSize}-${frames.length}f.gif`;
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    gif.render();
+}
+
+// ─── Canvas ──────────────────────────────────────────────
 
 function positionGridOverlay() {
     const container = document.getElementById('canvasContainer');
@@ -97,8 +388,6 @@ function initCanvas() {
     canvas.height = gridSize * zoom;
     gridOverlay.width = gridSize * zoom;
     gridOverlay.height = gridSize * zoom;
-
-    pixelData = new Array(gridSize * gridSize).fill('#00000000');
 
     ctx.imageSmoothingEnabled = false;
     gridOverlayCtx.imageSmoothingEnabled = false;
@@ -194,6 +483,8 @@ function selectTool(tool) {
 
     if (tool === 'eraser') {
         canvas.style.cursor = 'cell';
+    } else if (tool === 'eyedropper') {
+        canvas.style.cursor = 'crosshair';
     } else {
         canvas.style.cursor = 'crosshair';
     }
@@ -207,22 +498,28 @@ function addCustomColor() {
     selectColor(color);
 }
 
-function resizeCanvas() {
-    const oldData = [...pixelData];
-    const oldSize = Math.sqrt(oldData.length);
+function resizeAllFrames() {
+    const oldGridSize = Math.sqrt(frames[0].length);
+    if (oldGridSize === gridSize) return;
 
-    initCanvas();
-
-    const minSize = Math.min(oldSize, gridSize);
-    for (let y = 0; y < minSize; y++) {
-        for (let x = 0; x < minSize; x++) {
-            pixelData[y * gridSize + x] = oldData[y * oldSize + x];
+    frames = frames.map(frame => {
+        const newData = createEmptyFrame();
+        const minSize = Math.min(oldGridSize, gridSize);
+        for (let y = 0; y < minSize; y++) {
+            for (let x = 0; x < minSize; x++) {
+                newData[y * gridSize + x] = frame[y * oldGridSize + x];
+            }
         }
-    }
+        return newData;
+    });
 
-    renderCanvas();
-    drawGridOverlay();
-    requestAnimationFrame(positionGridOverlay);
+    saveFrames();
+}
+
+function resizeCanvas() {
+    saveCanvasToFrame();
+    resizeAllFrames();
+    loadFrameToCanvas();
 }
 
 function getCanvasCoords(clientX, clientY) {
@@ -257,7 +554,7 @@ function updateHover(e) {
 function clearHover() {
     hoverX = -1;
     hoverY = -1;
-    coordsEl.textContent = '—';
+    coordsEl.textContent = '\u2014';
     drawGridOverlay();
 }
 
@@ -292,6 +589,7 @@ function stopDrawing() {
         fill(lastX, lastY);
     }
     isDrawing = false;
+    saveCanvasToFrame();
 }
 
 function drawPixel(x, y) {
@@ -414,28 +712,24 @@ function drawGridOverlay() {
 
 function clearCanvas() {
     pixelData.fill('#00000000');
+    frames[currentFrame] = [...pixelData];
     renderCanvas();
     drawGridOverlay();
-    saveCanvasState();
+    saveFrames();
+    renderTimeline();
 }
 
 function saveCanvasState() {
-    localStorage.setItem('pixelArtCanvasData', JSON.stringify(pixelData));
+    saveCanvasToFrame();
 }
 
 function loadCanvasState() {
-    const saved = localStorage.getItem('pixelArtCanvasData');
-    if (saved) {
-        try {
-            const data = JSON.parse(saved);
-            pixelData = data;
-        } catch (e) {
-            pixelData = [];
-        }
-    }
+    // Handled by initFrames
 }
 
 function downloadCanvas() {
+    saveCanvasToFrame();
+
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = gridSize;
     exportCanvas.height = gridSize;
@@ -460,6 +754,7 @@ function downloadCanvas() {
 }
 
 function setupEventListeners() {
+    // Tool buttons
     document.querySelectorAll('.tool-btn').forEach(btn => {
         btn.addEventListener('click', () => selectTool(btn.dataset.tool));
     });
@@ -467,24 +762,30 @@ function setupEventListeners() {
     gridSizeInput.addEventListener('input', (e) => {
         gridSize = parseInt(e.target.value);
         gridSizeValue.textContent = gridSize;
-        resizeCanvas();
+        stopPlayback();
+        saveCanvasToFrame();
+        resizeAllFrames();
+        loadFrameToCanvas();
         saveSettings();
     });
 
     zoomInput.addEventListener('input', (e) => {
         zoom = parseInt(e.target.value);
         zoomValue.textContent = zoom + 'x';
-        resizeCanvas();
+        saveCanvasToFrame();
+        loadFrameToCanvas();
         saveSettings();
     });
 
     clearBtn.addEventListener('click', clearCanvas);
     downloadBtn.addEventListener('click', downloadCanvas);
+    exportGifBtn.addEventListener('click', exportGif);
     addColorBtn.addEventListener('click', addCustomColor);
     customColorInput.addEventListener('input', () => {
         currentColor = customColorInput.value;
     });
 
+    // Canvas events
     canvas.addEventListener('mousedown', startDrawing);
     canvas.addEventListener('mousemove', (e) => {
         updateHover(e);
@@ -506,32 +807,42 @@ function setupEventListeners() {
         positionGridOverlay();
     });
 
+    // Timeline controls
+    prevFrameBtn.addEventListener('click', prevFrame);
+    nextFrameBtn.addEventListener('click', nextFrame);
+    playBtn.addEventListener('click', togglePlayback);
+    addFrameBtn.addEventListener('click', addFrame);
+    dupFrameBtn.addEventListener('click', duplicateFrame);
+    delFrameBtn.addEventListener('click', deleteFrame);
+
+    fpsSlider.addEventListener('input', (e) => {
+        updateFps(parseInt(e.target.value));
+    });
+
+    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
         if (e.key >= '1' && e.key <= '4') {
             const tools = ['pencil', 'eraser', 'fill', 'eyedropper'];
             selectTool(tools[parseInt(e.key) - 1]);
+        }
+
+        if (e.key === ' ') {
+            e.preventDefault();
+            togglePlayback();
+        }
+
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            prevFrame();
+        }
+
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            nextFrame();
         }
     });
 }
 
 init();
-
-if (window.electronAPI) {
-    window.electronAPI.onSave(() => downloadCanvas());
-    window.electronAPI.onNew(() => clearCanvas());
-    window.electronAPI.onExportTransparent(() => downloadCanvas());
-    window.electronAPI.onZoomIn(() => {
-        zoom = Math.min(32, zoom + 1);
-        zoomInput.value = zoom;
-        zoomValue.textContent = zoom + 'x';
-        resizeCanvas();
-        saveSettings();
-    });
-    window.electronAPI.onZoomOut(() => {
-        zoom = Math.max(1, zoom - 1);
-        zoomInput.value = zoom;
-        zoomValue.textContent = zoom + 'x';
-        resizeCanvas();
-        saveSettings();
-    });
-}

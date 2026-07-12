@@ -1,17 +1,16 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
-const fs = require('fs');
 
 let mainWindow;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1000,
-        height: 750,
-        minWidth: 600,
-        minHeight: 500,
+        width: 1100,
+        height: 800,
+        minWidth: 700,
+        minHeight: 550,
         title: 'Pixel Art Maker',
-        backgroundColor: '#1a1a2e',
+        backgroundColor: '#0a0a0f',
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -36,11 +35,10 @@ function createWindow() {
                     accelerator: 'CmdOrCtrl+S',
                     click: () => mainWindow.webContents.send('menu-save')
                 },
-                { type: 'separator' },
                 {
-                    label: 'Export Transparent PNG...',
-                    accelerator: 'CmdOrCtrl+Shift+S',
-                    click: () => mainWindow.webContents.send('menu-export-transparent')
+                    label: 'Export GIF...',
+                    accelerator: 'CmdOrCtrl+G',
+                    click: () => mainWindow.webContents.send('menu-export-gif')
                 },
                 { type: 'separator' },
                 { role: 'quit' }
@@ -86,7 +84,7 @@ function createWindow() {
                             type: 'info',
                             title: 'About',
                             message: 'Pixel Art Maker',
-                            detail: 'A simple pixel art editor.\n\nClick to draw, use tools to create your art!'
+                            detail: 'A pixel art editor with animation support.\n\nDraw, animate, and export GIFs!'
                         });
                     }
                 }
