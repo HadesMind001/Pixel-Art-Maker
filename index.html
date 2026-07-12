@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Maker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="scanlines"></div>
+    <div class="app">
+        <header>
+            <div class="title-wrap">
+                <span class="pixel-icon">&#9724;</span>
+                <h1>Pixel Art Maker</h1>
+                <span class="pixel-icon">&#9724;</span>
+            </div>
+            <div class="subtitle">Click cells to draw &bull; Drag to paint &bull; Ctrl+S to save</div>
+        </header>
+
+        <div class="toolbar">
+            <div class="tool-group">
+                <label>Tool</label>
+                <div class="tool-buttons">
+                    <button class="tool-btn active" data-tool="pencil" title="Pencil (1)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="eraser" title="Eraser (2)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="fill" title="Fill Bucket (3)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20.3c0 .8-.7 1.7-1.5 1.7s-1.5-.9-1.5-1.7c0-.8 1.5-2.8 1.5-2.8s1.5 2 1.5 2.8Z"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="eyedropper" title="Eyedropper (4)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <label>Grid</label>
+                <div class="slider-wrap">
+                    <input type="range" id="gridSize" min="4" max="64" value="16">
+                    <span class="slider-value" id="gridSizeValue">16</span>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <label>Zoom</label>
+                <div class="slider-wrap">
+                    <input type="range" id="zoom" min="1" max="32" value="16">
+                    <span class="slider-value" id="zoomValue">16x</span>
+                </div>
+            </div>
+
+            <div class="tool-group actions">
+                <button class="btn btn-ghost" id="clearBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    Clear
+                </button>
+                <button class="btn btn-primary" id="downloadBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download PNG
+                </button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="canvas-area">
+                <div class="canvas-container" id="canvasContainer">
+                    <canvas id="pixelCanvas"></canvas>
+                    <canvas id="gridOverlay"></canvas>
+                </div>
+                <div class="coords" id="coords">0, 0</div>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel color-palette">
+                    <h3>Colors</h3>
+                    <div class="colors" id="colorPalette"></div>
+                    <div class="custom-color">
+                        <input type="color" id="customColor" value="#000000">
+                        <button class="btn btn-small" id="addColorBtn">Add</button>
+                    </div>
+                </div>
+
+                <div class="panel recent-colors">
+                    <h3>Recent</h3>
+                    <div class="colors" id="recentColors"></div>
+                </div>
+
+                <div class="panel current-color-panel">
+                    <h3>Current</h3>
+                    <div class="current-color-preview" id="currentColorPreview">
+                        <div class="current-color-swatch" id="currentSwatch"></div>
+                        <span class="current-color-hex" id="currentHex">#000000</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
