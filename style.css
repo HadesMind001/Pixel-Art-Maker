@@ -623,6 +623,12 @@ input[type="range"]::-moz-range-thumb {
     color: var(--green);
 }
 
+.btn-onion.active {
+    background: rgba(255, 51, 102, 0.15);
+    border-color: rgba(255, 51, 102, 0.4);
+    color: var(--red);
+}
+
 .btn-gif {
     background: linear-gradient(135deg, rgba(51, 255, 102, 0.15), rgba(51, 204, 255, 0.15));
     color: var(--text-bright);
